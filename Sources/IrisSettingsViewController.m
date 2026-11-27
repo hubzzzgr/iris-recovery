@@ -60,7 +60,7 @@
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
     } else {
         cell.detailTextLabel.text = [value length] ? value : (path.row == 4 ? @"Default" : @"");
-        cell.accessoryType = UITableViewCellAccessoryTypeDisclosureIndicator;
+        cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     }
     return cell;
 }
