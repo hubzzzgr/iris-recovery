@@ -11,7 +11,7 @@ xcrun --sdk iphoneos clang \
   -target arm64-apple-ios15.0 \
   -isysroot "$sdk" -fobjc-arc -fblocks -fvisibility=hidden \
   -Wall -Wextra -dynamiclib -Wl,-install_name,@rpath/iris.dylib \
-  -framework Foundation -framework CoreFoundation -framework UIKit -framework UniformTypeIdentifiers \
+  -framework Foundation -framework CoreFoundation -framework CoreGraphics -framework UIKit -framework UniformTypeIdentifiers \
   "$root/Sources/IrisPreferences.m" "$root/Sources/IrisSettingsViewController.m" \
   "$root/Sources/IrisHeader.m" -o "$output"
 
