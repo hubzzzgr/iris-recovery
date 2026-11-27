@@ -1,0 +1,23 @@
+name: Build Iris iOS dylib
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile ARM64 iOS dylib
+        run: bash scripts/build-ios.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iris-ios-arm64
+          path: |
+            build/iris.dylib
+            build/SHA256SUMS
+          if-no-files-found: error
