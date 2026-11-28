@@ -20,4 +20,5 @@ jobs:
           path: |
             build/iris.dylib
             build/SHA256SUMS
+            build/Zstandard-LICENSE.txt
           if-no-files-found: error

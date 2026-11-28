@@ -3,6 +3,7 @@
 #import <string.h>
 
 #import "IrisPreferences.h"
+#import "IrisRefresh.h"
 #import "IrisSettingsViewController.h"
 
 @interface IrisHeaderAccessory : UIView
@@ -50,15 +51,9 @@
     BOOL showHeader = [values[IrisHeaderEnabled] boolValue];
     _title.text = showHeader ? values[IrisHeaderTitle] : nil;
     _subtitle.text = showHeader && [values[IrisHeaderSubtitleEnabled] boolValue] ? values[IrisHeaderSubtitle] : nil;
-    NSString *hex = values[IrisHeaderColorHex];
-    unsigned rgb = 0;
-    UIColor *color = nil;
-    if (hex.length == 7 && [[NSScanner scannerWithString:[hex substringFromIndex:1]] scanHexInt:&rgb]) {
-        color = [UIColor colorWithRed:((rgb >> 16) & 255) / 255.0 green:((rgb >> 8) & 255) / 255.0
-                                blue:(rgb & 255) / 255.0 alpha:1.0];
-    }
+    UIColor *color = IrisColorFromHex(values[IrisHeaderColorHex]);
     _title.textColor = color ?: UIColor.labelColor;
-    _subtitle.textColor = color ?: UIColor.secondaryLabelColor;
+    _subtitle.textColor = IrisColorFromHex(values[IrisSubtitleColorHex]) ?: UIColor.secondaryLabelColor;
     _settings.tintColor = color ?: UIColor.labelColor;
     [self setNeedsLayout];
 }
@@ -101,6 +96,7 @@ static IMP IrisOriginalLayout;
 static IMP IrisOriginalMove;
 static IMP IrisOriginalTraits;
 static IMP IrisOriginalTransition;
+static IMP IrisOriginalHitTest;
 
 static void IrisUpdateHeader(UIView *header) {
     if (!NSThread.isMainThread) return;
@@ -144,15 +140,32 @@ static void IrisTransition(UIView *header, SEL selector, id item) {
     IrisUpdateHeader(header);
 }
 
+static UIView *IrisHitTest(UIView *header, SEL selector, CGPoint point, UIEvent *event) {
+    IrisHeaderAccessory *overlay = objc_getAssociatedObject(header, &IrisAccessoryKey);
+    if (header.userInteractionEnabled && !header.hidden && header.alpha > 0.01 &&
+        overlay.superview == header && overlay.window) {
+        UIView *hit = [overlay hitTest:[overlay convertPoint:point fromView:header] withEvent:event];
+        if (hit && hit != overlay) return hit;
+    }
+    return ((UIView *(*)(UIView *, SEL, CGPoint, UIEvent *))IrisOriginalHitTest)(header, selector, point, event);
+}
+
 // Install on the subclass so inherited UIView implementations remain shared by other views.
 static void IrisInstallMethod(Class cls, SEL selector, IMP replacement, unsigned arguments, IMP *original) {
     if (*original) return;
     Method method = class_getInstanceMethod(cls, selector);
     if (!method || method_getNumberOfArguments(method) != arguments) return;
-    char type[16] = {};
+    char type[64] = {0};
     method_getReturnType(method, type, sizeof(type));
-    if (strcmp(type, "v") != 0) return;
-    if (arguments == 3) {
+    if (selector == @selector(hitTest:withEvent:)) {
+        if (type[0] != '@') return;
+        method_getArgumentType(method, 2, type, sizeof(type));
+        if (strcmp(type, @encode(CGPoint)) != 0) return;
+        method_getArgumentType(method, 3, type, sizeof(type));
+        if (type[0] != '@') return;
+    } else if (strcmp(type, "v") != 0) {
+        return;
+    } else if (arguments == 3) {
         method_getArgumentType(method, 2, type, sizeof(type));
         if (type[0] != '@') return;
     }
@@ -171,6 +184,8 @@ static BOOL IrisInstallHeader(void) {
     IrisInstallMethod(header, @selector(traitCollectionDidChange:), (IMP)IrisTraitsChanged, 3, &IrisOriginalTraits);
     IrisInstallMethod(header, NSSelectorFromString(@"setUpAnimatedTransitionToHeaderItem:"),
                       (IMP)IrisTransition, 3, &IrisOriginalTransition);
+    IrisInstallMethod(header, @selector(hitTest:withEvent:), (IMP)IrisHitTest, 4, &IrisOriginalHitTest);
+    IrisInstallRefreshAppearance();
     return IrisOriginalLayout != NULL;
 }
 
